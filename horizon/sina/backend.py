@@ -17,6 +17,7 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError
+import logging
 import string
 import random
 from models import SinaProfile
@@ -24,6 +25,9 @@ from keystoneclient.v2_0 import client as keystone_client
 from django.contrib import messages
 from openstack_auth.backend import KeystoneBackend
 from weibo import APIClient
+
+
+LOG = logging.getLogger(__name__)
 
 
 class SinaBackend:
@@ -50,7 +54,12 @@ class SinaBackend:
                                      access_token_dict.expires_in)
 
         # Read the user's profile information
-        sina_profile = sina_client.account.profile.basic.get()
+        try:
+            sina_profile = sina_client.account.profile.basic.get()
+        except Exception as e:
+            LOG.warn("SinaAPIClient Error: %s", e)
+            messages.error(request, 'You SinaID is not authorized to login.')
+            return
         sina_id = sina_profile['id']
         sina_email = sina_profile['email']
         password = ""
@@ -111,7 +120,7 @@ class SinaBackend:
             user_ids = [user['id'] for user in friends['users']]
             if sina_id not in user_ids:
                 messages.error(
-                    request, "Your sinaID is not followed by KylinCloud yet.")
+                    request, "Your sinaID is not followed by %s yet.", uid)
             else:
                 user = keystone.authenticate(request=request,
                                       username=username,
