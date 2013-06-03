@@ -120,7 +120,7 @@ class SinaBackend:
             user_ids = [user['id'] for user in friends['users']]
             if sina_id not in user_ids:
                 messages.error(
-                    request, "Your sinaID is not followed by %s yet.", uid)
+                    request, "Your sinaID is not followed by %s yet." % uid)
             else:
                 user = keystone.authenticate(request=request,
                                       username=username,
