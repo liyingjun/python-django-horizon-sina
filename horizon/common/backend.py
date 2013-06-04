@@ -83,7 +83,7 @@ class ExternalBackend:
                 break
             all_friends.extend(friends['users'])
             page = page + 1
-        user_ids = [user['id'] for user in all_friends]
+        user_ids = [str(user['id']) for user in all_friends]
         if sina_id in user_ids:
             valid = True
         else:
