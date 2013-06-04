@@ -2,24 +2,30 @@
 python-django-horizon-sina
 ==========================
 
-本plugin参考trystack的facebook plugin, facebook plugin详见：
+本plugin参考trystack的facebook plugin, facebook plugin详见:
 https://github.com/trystack/python-django-horizon-facebook
 
-安装步骤:
+安装步骤
 =========
 
-    * 修改openstack_dashboard/settings.py::
+* 安装Sina Weibo Pyton Client::
 
+    $ pip install sinaweibopy
+
+* 修改openstack_dashboard/settings.py::
+
+    Add 'horizon.common' to INSTALLED_APPS
     Add 'horizon.sina' to INSTALLED_APPS
-    Add 'horizon.facebook.backend.SinaBackend' to AUTHENTICATION_BACKENDS
+    Add 'horizon.tencent' to INSTALLED_APPS
+    Add 'horizon.common.backend.ExternalBackend' to AUTHENTICATION_BACKENDS
 
-    添加新行::
+添加新行::
 
-    AUTH_PROFILE_MODULE = 'horizon.sina.SinaProfile'
+    AUTH_PROFILE_MODULE = 'horizon.common.ExternalProfile'
 
-    * 修改openstack_dashboard/local_settings.py
+* 修改openstack_dashboard/local_settings.py
 
-    加入如下行，并加入相应参数::
+加入如下行，并加入相应参数::
 
     SINA_APP_ID = ""
     SINA_APP_SECRET = ""
@@ -27,6 +33,11 @@ https://github.com/trystack/python-django-horizon-facebook
     """The user must followed each other with this user with id SINA_GROUP_ID."""
     SINA_GROUP_ID = ""
     """The keystone admin user name."""
+
+    TENCENT_APP_ID = ""
+    TENCENT_APP_SECRET = ""
+    TENCENT_GROUP_ID = ""
+
     ADMIN_USER = ""
     """The keystone admin tenant name."""
     ADMIN_TENANT = ""
@@ -39,23 +50,30 @@ https://github.com/trystack/python-django-horizon-facebook
                              'USER': '',
                              'PASSWORD': ''}}
 
-    * 同步数据库::
+* 同步数据库::
 
         $ ./manager.py syncdb
 
-    * 修改openstack_dashboard/urls.py
+* 修改openstack_dashboard/urls.py
+
     在url(r'', include(horizon.urls))行的上面加入行::
 
         url(r'sina/', include('horizon.sina.urls')),
+        url(r'tencent/', include('horizon.tencent.urls')),
 
-    * 覆盖templates文件
+* 覆盖templates文件
 
-        拷贝 horizon/templates/目录下的文件至django-horizon对应的位置覆盖原文件
+    拷贝 horizon/templates/目录下的文件至django-horizon对应的位置覆盖原文件
 
-附:
+附
 ===
-    新浪APP创建:
-    
-        * http://blog.csdn.net/junheart/article/details/9009147
 
-    回调页最后必须以sina/authentication_callback结尾，如果需要使用其他的结尾，则需要修改代码使url匹配
+新浪APP创建::
+    
+    * http://blog.csdn.net/junheart/article/details/9009147
+
+回调页最后必须以sina/authentication_callback结尾，如果需要使用其他的结尾，则需要修改代码使url匹配
+
+腾讯APP创建::
+
+    * http://dev.t.qq.com/

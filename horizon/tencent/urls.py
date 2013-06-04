@@ -14,19 +14,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import User
+from django.conf.urls import patterns, url
 
-from models import SinaProfile
-
-# We want to display our sinabook profile, not the default user
-admin.site.unregister(User)
-
-class SinaProfileInline(admin.StackedInline):
-    model = SinaProfile
-
-class SinaProfileAdmin(UserAdmin):
-    inlines = [SinaProfileInline]
-
-admin.site.register(User, SinaProfileAdmin)
+urlpatterns = patterns('horizon',
+    url(r'^login$', 'tencent.views.login'),
+    url(r'^authentication_callback$', 'tencent.views.authentication_callback'),
+)
