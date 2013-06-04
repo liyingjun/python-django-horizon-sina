@@ -75,8 +75,10 @@ class ExternalBackend:
                 friends = sina_client.friendships.friends.bilateral.get(
                                                                     uid=uid,
                                                                     page=page)
-            except Exception as e:
                 # no more friends.
+                if friends['total_number'] == 0:
+                    break
+            except Exception as e:
                 LOG.debug('Error: %s', e)
                 break
             all_friends.extend(friends['users'])
