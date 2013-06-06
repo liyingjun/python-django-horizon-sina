@@ -10,6 +10,8 @@ setup(
     license = "Apache 2.0",
     keywords = "sina django",
     url = "http://packages.python.org/an_example_pypi_project",
-    packages = ['horizon.sina',],
+    packages = ['horizon.sina',
+                'horizon.tencent',
+                'horizon.common'],
     long_description = ("A sina auth plugin for django-horizon."),
 )
