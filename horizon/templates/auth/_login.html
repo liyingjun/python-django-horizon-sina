@@ -5,6 +5,7 @@
   <center>
     <a href="{% url horizon.sina.views.login %}" class="btn btn-primary">Login with Sina</a>
     <a href="{% url horizon.tencent.views.login %}" class="btn btn-primary">Login with QQ</a>
+    <a href="{% url horizon.linkedin.views.login %}" class="btn btn-primary">Login with LinkedIn</a>
   </center>
 {% trans "Log In" %}{% endblock %}
 {% block modal_class %}login {% if hide %}modal hide{% endif %}{% endblock %}

@@ -7,6 +7,7 @@ python-django-horizon-sina
 https://github.com/trystack/python-django-horizon-facebook
 
 目前支持新浪微博及腾讯微博登录, 通过判断是否互粉 SINA_GROUP_ID/TENCENT_GROUP_ID 来控制用户登录
+新加入LinkedIn支持，通过判断用户是否LINKEDIN_GROUP_ID来控制用户登录
 
 安装步骤
 =========
