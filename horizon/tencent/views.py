@@ -42,7 +42,8 @@ def authentication_callback(request):
     It reads in a code from Tencent, then redirects back to the home page. """
     code = request.GET.get('code')
     openid = request.GET.get('openid')
-    user = authenticate(token=code, openid=openid, request=request)
+    user = authenticate(code=code, group=settings.TENCENT_GROUP_ID,
+                        openid=openid, provider='tencent', request=request)
     try:
         auth_login(request, user)
     except AttributeError:

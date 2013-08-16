@@ -26,6 +26,7 @@ https://github.com/trystack/python-django-horizon-facebook
         Add 'horizon.common' to INSTALLED_APPS
         Add 'horizon.sina' to INSTALLED_APPS
         Add 'horizon.tencent' to INSTALLED_APPS
+        Add 'horizon.linkedin' to INSTALLED_APPS
         Add 'horizon.common.backend.ExternalBackend' to AUTHENTICATION_BACKENDS
 
     添加新行:
@@ -46,6 +47,12 @@ https://github.com/trystack/python-django-horizon-facebook
         TENCENT_APP_ID = ""
         TENCENT_APP_SECRET = ""
         TENCENT_GROUP_ID = ""
+
+        LINKEDIN_APP_KEY = ""
+        LINKEDIN_APP_SECRET = ""
+        # A long unique string value of your choice that is hard to guess
+        LINKEDIN_STATE = ""
+        LINKEDIN_GROUP_ID = ""
 
         ADMIN_USER = ""
         """The keystone admin tenant name."""
@@ -69,6 +76,7 @@ https://github.com/trystack/python-django-horizon-facebook
 
         url(r'sina/', include('horizon.sina.urls')),
         url(r'tencent/', include('horizon.tencent.urls')),
+        url(r'linkedin/', include('horizon.tencent.urls')),
 
 * 覆盖 templates 文件
 

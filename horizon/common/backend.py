@@ -42,14 +42,14 @@ class ExternalBackend:
                                       tenant_name=settings.ADMIN_TENANT,
                                       auth_url=settings.OPENSTACK_KEYSTONE_URL)
 
-    def _get_sina_profile(self, token=None, request=None):
+    def _get_sina_profile(self, code=None, openid=None, request=None):
         redirect_uri = request.build_absolute_uri('authentication_callback')
         sina_client = APIClient(app_key=settings.SINA_APP_ID,
                                 app_secret=settings.SINA_APP_SECRET,
                                 redirect_uri=redirect_uri)
 
         # Get a legit access token
-        access_token_dict = sina_client.request_access_token(token)
+        access_token_dict = sina_client.request_access_token(code)
         access_token = access_token_dict.access_token
         sina_client.set_access_token(access_token,
                                      access_token_dict.expires_in)
@@ -93,7 +93,7 @@ class ExternalBackend:
         return dict(user_id=sina_id, user_email=sina_email,
                     access_token=access_token, valid=valid)
 
-    def _get_tencent_profile(self, token=None, openid=None, request=None):
+    def _get_tencent_profile(self, code=None, openid=None, request=None):
         if request.META.has_key('HTTP_X_FORWARDED_FOR'):
             clientip =  request.META['HTTP_X_FORWARDED_FOR']
         else:
@@ -104,7 +104,7 @@ class ExternalBackend:
             'client_secret': settings.TENCENT_APP_SECRET,
             'redirect_uri': redirect_uri,
             'grant_type': 'authorization_code',
-            'code': token,
+            'code': code,
         }
 
         # Get a legit access token
@@ -177,34 +177,86 @@ class ExternalBackend:
         return dict(user_id=tencent_id, user_email=tencent_email,
                     access_token=access_token, valid=valid)
 
-    def authenticate(self, token=None, openid=None, request=None):
-        """ Reads in a Sina/Tencent code and asks Sina/Tencent
-            if it's valid and what user it points to. """
+    def _get_linkedin_profile(self, code=None, openid=None, request=None):
+        redirect_uri = request.build_absolute_uri('authentication_callback')
+        args = {
+            'code': code,
+            'scope': 'r_basicprofile,r_emailaddress,rw_groups',
+            'redirect_uri': redirect_uri,
+            'client_id': settings.LINKEDIN_APP_KEY,
+            'client_secret': settings.LINKEDIN_APP_SECRET,
+        }
+
+        # Get a legit access token
+        target = urllib.urlopen(
+                'https://www.linkedin.com/uas/oauth2/accessToken?'
+                + 'grant_type=authorization_code&'
+                + urllib.urlencode(args)).read()
+        response = json.loads(target)
+        access_token = response['access_token']
+
+        # Read the user's profile information
+        try:
+            linkedin_user = urllib.urlopen(
+                    'https://api.linkedin.com/v1/people/~:(id,email-address)?'
+                    'format=json&oauth2_access_token=%s' % access_token).read()
+            linkedin_user = json.loads(linkedin_user)
+            linkedin_id = linkedin_user['id']
+            linkedin_email = linkedin_user['emailAddress']
+        except Exception as e:
+            LOG.warn("LinkedIn get user profile Error: %s", e)
+            messages.error(request, 'You LinkedIn is not authorized to login.')
+            return None
+
+        # Validate the user
+        try:
+            memberships = urllib.urlopen(
+                    'https://api.linkedin.com/v1/people/~/'
+                    'group-memberships:(group:(id,name,),membership-state)?'
+                    'format=json&oauth2_access_token=%s' % access_token).read()
+            memberships = json.loads(memberships)
+            groups = memberships.get('values', [])
+            group_ids = []
+            for group in groups:
+                group_ids.append(group['_key'])
+        except Exception as e:
+            LOG.warn("LinkedIn user validate error: %s", e)
+            return None
+
+        valid = False
+        if settings.LINKEDIN_GROUP_ID in group_ids:
+            valid = True
+
+        return dict(user_id=linkedin_id, user_email=linkedin_email,
+                    access_token=access_token, valid=valid)
+
+    def authenticate(self, code=None, group=None, openid=None, provider=None,
+                     request=None):
+        """ Reads in a code and asks Provider if it's valid and
+        what user it points to. """
         keystone = KeystoneBackend()
         self.keystone = keystone
-        # Sina weibo does not need `openid`
-        if not openid:
-            user_profile = self._get_sina_profile(token=token, request=request)
-        else:
-            user_profile = self._get_tencent_profile(token=token,
-                                                     openid=openid,
-                                                     request=request)
+        try:
+            profile_handle = getattr(self, '_get_%s_profile' % provider)
+        except AttributeError:
+            LOG.warn("Need to define _get_%s_profile function." % provider)
+            return
+        user_profile = profile_handle(code=code, openid=openid,
+                                      request=request)
         if not user_profile:
             return
         if not user_profile['valid']:
+            msg = "Failed to login, you are not in %s group: %s" % (provider,
+                                                                    group)
+            messages.error(request, msg)
             return
 
         external_id = user_profile['user_id']
         external_email = user_profile['user_email']
         access_token = user_profile['access_token']
 
-        if not openid:
-            username = "sina_%s" % external_id
-            tenant_name = "sina_%s" % external_id
-        else:
-            username = "tencent_%s" % external_id
-            tenant_name = "tencent_%s" % external_id
-
+        username = "%s_%s" % (provider, external_id)
+        tenant_name = username
         password = ""
         try:
             # Try and find existing user
@@ -214,30 +266,32 @@ class ExternalBackend:
             external_user.access_token = access_token
             password = external_user.password
             external_user.save()
+            LOG.info("User: %s exists" % username)
         except ExternalProfile.DoesNotExist:
+            LOG.info("User: %s not exists, creating..." % username)
             # No existing user
             try:
-                try:
-                    user = User.objects.create_user(username, external_email)
-                except IntegrityError:
-                    # Username already exists, make it unique
-                    existing_user = User.objects.get(username=username)
-                    existing_user.delete()
-                    user = User.objects.create_user(username, external_email)
-                user.save()
+                user = User.objects.create_user(username, external_email)
+            except IntegrityError:
+                # Username already exists, make it unique
+                existing_user = User.objects.get(username=username)
+                existing_user.delete()
+                user = User.objects.create_user(username, external_email)
+            user.save()
 
-                password = "".join([random.choice(
-                                        string.ascii_lowercase + string.digits)
-                                   for i in range(8)])
+            password = "".join([random.choice(
+                                    string.ascii_lowercase + string.digits)
+                               for i in range(8)])
+            try:
                 # Create the UserProfile
                 external_user = ExternalProfile(user=user,
-                                                external_id=external_id,
-                                                access_token=access_token,
-                                                password=password)
+                                            external_id=external_id,
+                                            access_token=access_token,
+                                            password=password)
                 keystone_admin = self._admin_client()
 
                 tenant = keystone_admin.tenants.create(tenant_name,
-                                                       "Auto created account",
+                                                      "Auto created account",
                                                        True)
                 user = keystone_admin.users.create(tenant_name,
                                                    password,
@@ -250,9 +304,9 @@ class ExternalBackend:
                                                    tenant.id)
                 external_user.tenant_id = tenant.id
                 external_user.save()
-            except:
-                external_user.delete()
-
+            except Exception as e:
+                LOG.warn("Error creating user: %s, error: %s" % (username, e))
+                return
         try:
             user = keystone.authenticate(request=request,
                                     username=username,

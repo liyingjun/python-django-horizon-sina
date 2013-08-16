@@ -25,24 +25,25 @@ from openstack_auth.forms import Login
 
 
 def login(request):
-    """ First step of process, redirects user to sina,
+    """ First step of process, redirects user to linkedin,
         which redirects to authentication_callback. """
-    uri = '/sina/authentication_callback'
+    uri = '/linkedin/authentication_callback'
     args = {
-        'client_id': settings.SINA_APP_ID,
-        'scope': settings.SINA_SCOPE,
+        'client_id': settings.LINKEDIN_APP_KEY,
+        'scope': 'r_basicprofile,r_emailaddress',
+        'state': settings.LINKEDIN_STATE,
         'redirect_uri': request.build_absolute_uri(uri)
     }
-    r_uri = 'https://api.weibo.com/oauth2/authorize?' + urllib.urlencode(args)
+    r_uri = ('https://www.linkedin.com/uas/oauth2/authorization?'
+             'response_type=code&' + urllib.urlencode(args))
     return HttpResponseRedirect(r_uri)
 
 
 def authentication_callback(request):
     """ Second step of the login process.
-    It reads in a code from Sina, then redirects back to the home page. """
+    It reads in a code from LinkedIn, then redirects back to the home page. """
     code = request.GET.get('code')
-    user = authenticate(code=code, group=settings.SINA_GROUP_ID,
-                        provider='sina', request=request)
+    user = authenticate(code=code, provider='linkedin', request=request)
     try:
         auth_login(request, user)
     except AttributeError:

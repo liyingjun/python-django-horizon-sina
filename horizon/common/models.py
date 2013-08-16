@@ -21,7 +21,7 @@ from django.contrib.auth.models import User
 class ExternalProfile(models.Model):
     user = models.OneToOneField(User)
     external_id = models.CharField(max_length=150)
-    access_token = models.CharField(max_length=150)
+    access_token = models.CharField(max_length=1024)
     password =  models.CharField(max_length=150)
     tenant_id = models.CharField(max_length=150)
 
